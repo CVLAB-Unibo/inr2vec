@@ -19,7 +19,12 @@ from utils import get_mlp_params_as_matrix
 
 
 class InrDataset(Dataset):
-    def __init__(self, inrs_root: Path, split: str, sample_sd: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        inrs_root: Path,
+        split: str,
+        sample_sd: Dict[str, Any],
+    ) -> None:
         super().__init__()
 
         self.inrs_root = inrs_root / split
@@ -81,13 +86,18 @@ def main() -> None:
 
     for loader, split in zip(loaders, splits):
         idx = 0
+        labels = []
+        embeddings = []
 
         for batch in progress_bar(loader, f"{split}"):
-            pcds, matrices, class_id = batch
+            pcds, matrices, class_ids = batch
             matrices = matrices.cuda()
 
             with torch.no_grad():
                 embedding = encoder(matrices)
+
+            embeddings.append(embedding[0].cpu())
+            labels.append(class_ids[0])
 
             h5_path = Path(hcfg("out_root", str)) / Path(f"{split}") / f"{idx}.h5"
             h5_path.parent.mkdir(parents=True, exist_ok=True)
@@ -95,7 +105,7 @@ def main() -> None:
             with h5py.File(h5_path, "w") as f:
                 f.create_dataset("pcd", data=pcds[0].detach().cpu().numpy())
                 f.create_dataset("embedding", data=embedding[0].detach().cpu().numpy())
-                f.create_dataset("class_id", data=class_id[0].detach().cpu().numpy())
+                f.create_dataset("class_id", data=class_ids[0].detach().cpu().numpy())
 
             idx += 1
 

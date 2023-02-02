@@ -2,8 +2,8 @@ import collections
 from typing import Any, Dict, List
 
 import torch
+import torch.nn.functional as F
 from pycarus.learning.models.siren import SIREN
-from sklearn.neighbors import KDTree
 from torch import Tensor
 
 
@@ -70,3 +70,17 @@ def mlp_batched_forward(batched_params: List[Tensor], coords: Tensor) -> Tensor:
             f = torch.sin(30 * f)
 
     return f.squeeze(-1)
+
+
+def focal_loss(pred: Tensor, gt: Tensor, alpha: float = 0.1, gamma: float = 3) -> Tensor:
+    alpha_w = torch.tensor([alpha, 1 - alpha]).cuda()
+
+    bce_loss = F.binary_cross_entropy_with_logits(pred, gt.float(), reduction="none")
+    bce_loss = bce_loss.view(-1)
+
+    gt = gt.type(torch.long)
+    at = alpha_w.gather(0, gt.view(-1))
+    pt = torch.exp(-bce_loss)
+    f_loss = at * ((1 - pt) ** gamma) * bce_loss
+
+    return f_loss.mean()

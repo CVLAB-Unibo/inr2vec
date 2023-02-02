@@ -6,15 +6,15 @@ import logging
 import os
 from pathlib import Path
 from random import randint
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import h5py
 import numpy as np
 import torch
-import torch.nn.functional as F
 import wandb
+from einops import rearrange
 from hesiod import get_cfg_copy, get_out_dir, get_run_name, hcfg, hmain
-from pycarus.geometry.pcd import compute_udf_from_pcd, sample_pcds_from_udfs
+from pycarus.geometry.pcd import random_point_sampling, voxelize_pcd
 from pycarus.learning.models.siren import SIREN
 from pycarus.metrics.chamfer_distance import chamfer_t
 from pycarus.metrics.f_score import f_score
@@ -25,24 +25,31 @@ from torch.utils.data import DataLoader, Dataset
 
 from models.encoder import Encoder
 from models.idecoder import ImplicitDecoder
-from utils import get_mlp_params_as_matrix
+from utils import focal_loss, get_mlp_params_as_matrix
 
 logging.disable(logging.INFO)
 os.environ["WANDB_SILENT"] = "true"
 
 
 class InrDataset(Dataset):
-    def __init__(self, inrs_root: Path, split: str, sample_sd: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        inrs_root: Path,
+        split: str,
+        sample_sd: Dict[str, Any],
+        vox_res: int,
+    ) -> None:
         super().__init__()
 
         self.inrs_root = inrs_root / split
         self.mlps_paths = sorted(self.inrs_root.glob("*.h5"), key=lambda x: int(x.stem))
         self.sample_sd = sample_sd
+        self.vox_res = vox_res
 
     def __len__(self) -> int:
         return len(self.mlps_paths)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         with h5py.File(self.mlps_paths[index], "r") as f:
             pcd = torch.from_numpy(np.array(f.get("pcd")))
             params = np.array(f.get("params"))
@@ -50,36 +57,32 @@ class InrDataset(Dataset):
             matrix = get_mlp_params_as_matrix(params, self.sample_sd)
             class_id = torch.from_numpy(np.array(f.get("class_id"))).long()
 
-        return pcd, matrix, class_id
+        vgrid, centroids = voxelize_pcd(pcd, self.vox_res, -1, 1)
+
+        return vgrid, centroids, matrix, class_id
 
 
 class Inr2vecTrainer:
     def __init__(self) -> None:
         inrs_root = Path(hcfg("inrs_root", str))
-
-        self.num_queries_on_surface = hcfg("num_queries_on_surface", int)
-        self.stds = hcfg("stds", List[float])
-        self.num_points_per_std = hcfg("num_points_per_std", List[int])
+        self.num_points_fitting = hcfg("num_points_fitting", int)
 
         mlp_hdim = hcfg("mlp.hidden_dim", int)
         num_hidden_layers = hcfg("mlp.num_hidden_layers", int)
         mlp = SIREN(3, mlp_hdim, num_hidden_layers, 1)
         sample_sd = mlp.state_dict()
 
+        vox_res = hcfg("vox_res", int)
+
         train_split = hcfg("train_split", str)
-        train_dset = InrDataset(inrs_root, train_split, sample_sd)
+        train_dset = InrDataset(inrs_root, train_split, sample_sd, vox_res)
         train_bs = hcfg("train_bs", int)
-        self.train_loader = DataLoader(
-            train_dset,
-            batch_size=train_bs,
-            num_workers=8,
-            shuffle=True,
-        )
+        self.train_loader = DataLoader(train_dset, batch_size=train_bs, num_workers=8, shuffle=True)
 
         val_split = hcfg("val_split", str)
-        val_dset = InrDataset(inrs_root, val_split, sample_sd)
+        val_dset = InrDataset(inrs_root, val_split, sample_sd, vox_res)
         val_bs = hcfg("val_bs", int)
-        self.val_loader = DataLoader(val_dset, batch_size=val_bs, num_workers=8, drop_last=True)
+        self.val_loader = DataLoader(val_dset, batch_size=val_bs, num_workers=8)
 
         encoder_cfg = hcfg("encoder", Dict[str, Any])
         encoder = Encoder(
@@ -134,31 +137,24 @@ class Inr2vecTrainer:
 
             desc = f"Epoch {epoch}/{num_epochs}"
             for batch in progress_bar(self.train_loader, desc=desc):
-                pcds, matrices, _ = batch
+                vgrids, centroids, matrices, _ = batch
+                vgrids = vgrids.cuda()
+                centroids = centroids.cuda()
                 matrices = matrices.cuda()
-                pcds = pcds.cuda()
 
-                coords = []
-                labels = []
-                for i in range(pcds.shape[0]):
-                    crd, lbl = compute_udf_from_pcd(
-                        pcds[i],
-                        self.num_queries_on_surface,
-                        self.stds,
-                        self.num_points_per_std,
-                        (-1, 1),
-                        convert_to_bce_labels=True,
-                    )
-                    coords.append(crd)
-                    labels.append(lbl)
-                coords = torch.stack(coords, dim=0).cuda()
-                labels = torch.stack(labels, dim=0).cuda()
+                coords = rearrange(centroids, "b r1 r2 r3 d -> b (r1 r2 r3) d")
+                labels = rearrange(vgrids, "b r1 r2 r3 -> b (r1 r2 r3)")
+
+                coords_and_labels = torch.cat((coords, labels.unsqueeze(-1)), dim=-1)
+                selected_c_and_l = random_point_sampling(coords_and_labels, self.num_points_fitting)
+
+                selected_coords = selected_c_and_l[:, :, :3]
+                selected_labels = selected_c_and_l[:, :, 3]
 
                 embeddings = self.encoder(matrices)
+                pred = self.decoder(embeddings, selected_coords)
 
-                pred = self.decoder(embeddings, coords)
-
-                loss = F.binary_cross_entropy_with_logits(pred, labels)
+                loss = focal_loss(pred, selected_labels)
 
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -180,6 +176,7 @@ class Inr2vecTrainer:
 
             self.save_ckpt()
 
+    @torch.no_grad()
     def val(self, split: str) -> None:
         loader = self.train_loader if split == "train" else self.val_loader
 
@@ -189,37 +186,27 @@ class Inr2vecTrainer:
         cdts = []
         fscores = []
         idx = 0
+
         for batch in progress_bar(loader, desc=f"Validating on {split} set"):
-            pcds, matrices, _ = batch
-            pcds = pcds.cuda()
+            vgrids, centroids, matrices, _ = batch
+            vgrids = vgrids.cuda()
+            centroids = centroids.cuda()
             matrices = matrices.cuda()
+            bs = vgrids.shape[0]
 
-            bs = pcds.shape[0]
-
-            with torch.no_grad():
-                embeddings = self.encoder(matrices)
-
-            pred_pcds = []
+            embeddings = self.encoder(matrices)
 
             for i in range(bs):
+                pcd_gt = centroids[i][vgrids[i] == 1]
+
+                centr = centroids[i].unsqueeze(0)
+                centr = rearrange(centr, "b r1 r2 r3 d -> b (r1 r2 r3) d")
                 emb = embeddings[i].unsqueeze(0)
+                vgrid_pred = torch.sigmoid(self.decoder(emb, centr).squeeze(0))
+                pcd_pred = centr[0][vgrid_pred > 0.4]
 
-                def udfs_func(coords: Tensor, indices: List[int]) -> Tensor:
-                    pred = torch.sigmoid(self.decoder(emb, coords))
-                    pred = 1 - pred
-                    pred *= 0.1
-                    return pred
-
-                pred_pcd = sample_pcds_from_udfs(udfs_func, 1, 4096, (-1, 1), 0.05, 0.02, 2048, 1)
-                pred_pcds.append(pred_pcd[0])
-
-            pred_pcds = torch.stack(pred_pcds, dim=0)
-
-            cd = chamfer_t(pred_pcds, pcds)
-            cdts.extend([float(cd[i]) for i in range(bs)])
-
-            f = f_score(pred_pcds, pcds, threshold=0.01)[0]
-            fscores.extend([float(f[i]) for i in range(bs)])
+                cdts.append(float(chamfer_t(pcd_pred, pcd_gt)))
+                fscores.append(float(f_score(pcd_pred, pcd_gt, threshold=0.01)[0]))
 
             if idx > 99 and split == "train":
                 break
@@ -235,6 +222,7 @@ class Inr2vecTrainer:
             self.best_chamfer = mean_cdt
             self.save_ckpt(best=True)
 
+    @torch.no_grad()
     def plot(self, split: str) -> None:
         loader = self.train_loader if split == "train" else self.val_loader
 
@@ -245,34 +233,29 @@ class Inr2vecTrainer:
         for _ in range(randint(1, len(loader) - 1)):
             batch = next(loader_iter)
 
-        pcds, matrices, _ = batch
-        pcds = pcds.cuda()
+        vgrids, centroids, matrices, _ = batch
+        vgrids = vgrids.cuda()
+        centroids = centroids.cuda()
         matrices = matrices.cuda()
+        bs = vgrids.shape[0]
 
-        bs = pcds.shape[0]
-
-        with torch.no_grad():
-            embeddings = self.encoder(matrices)
-
-        pred_pcds = []
+        embeddings = self.encoder(matrices)
 
         for i in range(bs):
+            pcd_gt = centroids[i][vgrids[i] == 1]
+
+            centr = centroids[i].unsqueeze(0)
+            centr = rearrange(centr, "b r1 r2 r3 d -> b (r1 r2 r3) d")
             emb = embeddings[i].unsqueeze(0)
+            vgrid_pred = torch.sigmoid(self.decoder(emb, centr).squeeze(0))
+            pcd_pred = centr[0][vgrid_pred > 0.4]
+            pcd_pred = random_point_sampling(pcd_pred, 2048)
 
-            def udfs_func(coords: Tensor, indices: List[int]) -> Tensor:
-                pred = torch.sigmoid(self.decoder(emb, coords))
-                pred = 1 - pred
-                pred *= 0.1
-                return pred
+            gt_wo3d = wandb.Object3D(pcd_gt.cpu().detach().numpy())
+            pred_wo3d = wandb.Object3D(pcd_pred.cpu().detach().numpy())
 
-            pred_pcd = sample_pcds_from_udfs(udfs_func, 1, 4096, (-1, 1), 0.05, 0.02, 2048, 1)
-            pred_pcds.append(pred_pcd[0])
-
-        for i in range(bs):
-            gt_wo3d = wandb.Object3D(pcds[i].cpu().detach().numpy())
-            pred_wo3d = wandb.Object3D(pred_pcds[i].cpu().detach().numpy())
-            pcd_logs = {f"{split}/pcd_{i}": [gt_wo3d, pred_wo3d]}
-            self.logfn(pcd_logs)
+            voxel_logs = {f"{split}/voxel_{i}": [gt_wo3d, pred_wo3d]}
+            self.logfn(voxel_logs)
 
     def save_ckpt(self, best: bool = False, all: bool = False) -> None:
         ckpt = {

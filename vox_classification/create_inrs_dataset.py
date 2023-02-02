@@ -8,19 +8,18 @@ from typing import Callable, List
 
 import h5py
 import torch
-import torch.nn.functional as F
+from einops import rearrange, repeat
 from hesiod import hcfg, hmain
-from pycarus.datasets.modelnet40 import ModelNet40
 from pycarus.datasets.ply import PlyDataset
-from pycarus.geometry.pcd import compute_udf_from_pcd, farthest_point_sampling
-from pycarus.geometry.pcd import random_point_sampling, shuffle_pcd
+from pycarus.geometry.pcd import farthest_point_sampling, random_point_sampling, shuffle_pcd
+from pycarus.geometry.pcd import voxelize_pcd
 from pycarus.learning.models.siren import SIREN
 from pycarus.transforms.pcd import JitterPcd, NormalizePcdIntoUnitSphere, RandomScalePcd
 from pycarus.utils import progress_bar
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 
-from utils import get_mlps_batched_params, mlp_batched_forward
+from utils import focal_loss, get_mlps_batched_params, mlp_batched_forward
 
 
 class InrsDatasetCreator:
@@ -29,10 +28,7 @@ class InrsDatasetCreator:
         self.pcd_root = Path(hcfg("pcd_root", str))
         self.splits = hcfg("splits", List[str])
         self.num_points_pcd = hcfg("num_points_pcd", int)
-
-        self.num_queries_on_surface = hcfg("num_queries_on_surface", int)
-        self.stds = hcfg("stds", List[float])
-        self.num_points_per_std = hcfg("num_points_per_std", List[int])
+        self.vox_res = hcfg("vox_res", int)
 
         self.num_required_train_shapes = hcfg("num_required_train_shapes", int)
         dset = self.get_dataset("train")
@@ -64,9 +60,7 @@ class InrsDatasetCreator:
         return mlp
 
     def get_dataset(self, split: str, transforms: List[Callable] = []) -> Dataset:
-        if self.dset_name == "modelnet40":
-            dset = ModelNet40(self.pcd_root, split, transforms)
-        elif self.dset_name in ["shapenet10", "scannet10"]:
+        if self.dset_name == "shapenet10":
             dset = PlyDataset(self.pcd_root, split, transforms)
         else:
             raise ValueError("Unknown dataset.")
@@ -78,7 +72,7 @@ class InrsDatasetCreator:
 
             augs = [False]
             if "train" in split:
-                augs += [True] * self.num_augmentations
+                augs += [True] * (self.num_augmentations + 1)
 
             for aug_idx, aug in enumerate(augs):
                 if aug:
@@ -96,35 +90,22 @@ class InrsDatasetCreator:
                     dset,
                     batch_size=self.num_parallel_mlps,
                     shuffle=False,
-                    num_workers=8,
+                    num_workers=0,
                 )
 
                 desc = f"Fitting {split} set ({aug_idx + 1}/{len(augs)})"
                 for batch in progress_bar(loader, desc, 80):
                     pcds, class_ids = batch
-
                     bs = pcds.shape[0]
-                    pcds = pcds.cuda()
 
                     if pcds.shape[1] != self.num_points_pcd:
                         pcds = farthest_point_sampling(pcds, self.num_points_pcd)
 
-                    coords = []
-                    labels = []
-                    for idx in range(bs):
-                        pcd_coords, pcd_labels = compute_udf_from_pcd(
-                            pcds[idx],
-                            self.num_queries_on_surface,
-                            self.stds,
-                            self.num_points_per_std,
-                            coords_range=(-1, 1),
-                            convert_to_bce_labels=True,
-                        )
-                        coords.append(pcd_coords)
-                        labels.append(pcd_labels)
+                    vgrids, centroids = voxelize_pcd(pcds, self.vox_res, -1, 1)
 
-                    coords = torch.stack(coords, dim=0)
-                    labels = torch.stack(labels, dim=0)
+                    coords = repeat(centroids, "r1 r2 r3 d -> b r1 r2 r3 d", b=bs)
+                    coords = rearrange(coords, "b r1 r2 r3 d -> b (r1 r2 r3) d")
+                    labels = rearrange(vgrids, "b r1 r2 r3 -> b (r1 r2 r3)")
 
                     coords_and_labels = torch.cat((coords, labels.unsqueeze(-1)), dim=-1).cuda()
                     coords_and_labels = shuffle_pcd(coords_and_labels)
@@ -144,7 +125,7 @@ class InrsDatasetCreator:
                         selected_labels = selected_c_and_l[:, :, 3]
 
                         pred = mlp_batched_forward(batched_params, selected_coords)
-                        loss = F.binary_cross_entropy_with_logits(pred, selected_labels)
+                        loss = focal_loss(pred, selected_labels)
 
                         optimizer.zero_grad()
                         loss.backward()
