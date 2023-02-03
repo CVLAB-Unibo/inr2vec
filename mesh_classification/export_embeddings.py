@@ -25,19 +25,22 @@ class InrDataset(Dataset):
         self.inrs_root = inrs_root / split
         self.mlps_paths = sorted(self.inrs_root.glob("*.h5"), key=lambda x: int(x.stem))
         self.sample_sd = sample_sd
+        self.split = split
 
     def __len__(self) -> int:
         return len(self.mlps_paths)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         with h5py.File(self.mlps_paths[index], "r") as f:
-            pcd = torch.from_numpy(np.array(f.get("pcd")))
-            params = np.array(f.get("params"))
-            params = torch.from_numpy(params).float()
+            vertices = torch.from_numpy(np.array(f.get("vertices")))
+            num_vertices = torch.from_numpy(np.array(f.get("num_vertices")))
+            triangles = torch.from_numpy(np.array(f.get("triangles")))
+            num_triangles = torch.from_numpy(np.array(f.get("num_triangles")))
+            params = torch.from_numpy(np.array(f.get("params"))).float()
             matrix = get_mlp_params_as_matrix(params, self.sample_sd)
             class_id = torch.from_numpy(np.array(f.get("class_id"))).long()
 
-        return pcd, matrix, class_id
+        return vertices, num_vertices, triangles, num_triangles, matrix, class_id
 
 
 @hmain(
@@ -83,7 +86,7 @@ def main() -> None:
         idx = 0
 
         for batch in progress_bar(loader, f"{split}"):
-            pcds, matrices, class_ids = batch
+            vertices, num_vertices, triangles, num_triangles, matrices, class_ids = batch
             matrices = matrices.cuda()
 
             with torch.no_grad():
@@ -93,9 +96,12 @@ def main() -> None:
             h5_path.parent.mkdir(parents=True, exist_ok=True)
 
             with h5py.File(h5_path, "w") as f:
-                f.create_dataset("pcd", data=pcds[0].detach().cpu().numpy())
+                f.create_dataset("vertices", data=vertices[0].detach().cpu().numpy())
+                f.create_dataset("num_vertices", data=num_vertices[0].detach().cpu().numpy())
+                f.create_dataset("triangles", data=triangles[0].detach().cpu().numpy())
+                f.create_dataset("num_triangles", data=num_triangles[0].detach().cpu().numpy())
                 f.create_dataset("embedding", data=embedding[0].detach().cpu().numpy())
-                f.create_dataset("s", data=class_ids[0].detach().cpu().numpy())
+                f.create_dataset("class_id", data=class_ids[0].detach().cpu().numpy())
 
             idx += 1
 

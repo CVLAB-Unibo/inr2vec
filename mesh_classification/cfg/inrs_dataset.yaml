@@ -1,0 +1,22 @@
+dset_name: "@OPTIONS(manifold40)"
+mesh_root: "/path/to/mesh/dset"
+splits: ["train", "val", "test"]
+
+num_required_train_shapes: 100_000
+
+num_queries_on_surface: 100_000
+stds: [0.003, 0.01, 0.1]
+num_points_per_std: [250_000, 200_000, 25_000, 25_000]
+
+num_points_fitting: 10_000
+num_parallel_mlps: 16
+
+mlp:
+  hidden_dim: 512
+  num_hidden_layers: 4
+  init_path: "init/in3_out1_h512_l4.pt"
+
+num_steps: 500
+lr: 1e-4
+
+out_root: "/path/where/to/save/inrs"

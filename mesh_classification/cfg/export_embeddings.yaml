@@ -1,0 +1,15 @@
+inrs_root: "/path/to/inrs"
+ckpt_path: "/inr2vec/ckpt/path"
+out_root: "/path/to/out/root"
+
+encoder:
+  hidden_dims: [512, 512, 1024, 1024]
+  embedding_dim: 1024
+
+mlp:
+  hidden_dim: 512
+  num_hidden_layers: 4
+
+train_split: "train"
+val_split: "val"
+test_split: "test"
