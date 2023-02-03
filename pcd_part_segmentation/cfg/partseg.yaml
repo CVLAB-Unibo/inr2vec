@@ -1,0 +1,22 @@
+dset_root: "/path/to/embeddings"
+dset_name: "@OPTIONS(shapenet-partseg)"
+
+train_bs: 256
+train_split: "train"
+
+val_bs: 256
+val_split: "val"
+test_split: "test"
+
+decoder:
+  input_dim: 3
+  hidden_dim: 512
+  num_hidden_layers_before_skip: 2
+  num_hidden_layers_after_skip: 2
+
+num_classes: 16
+num_part: 50
+
+lr: 1e-4
+wd: 1e-2
+num_epochs: 250

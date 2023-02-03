@@ -29,15 +29,17 @@ class InrDataset(Dataset):
     def __len__(self) -> int:
         return len(self.mlps_paths)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         with h5py.File(self.mlps_paths[index], "r") as f:
             pcd = torch.from_numpy(np.array(f.get("pcd")))
             params = np.array(f.get("params"))
             params = torch.from_numpy(params).float()
             matrix = get_mlp_params_as_matrix(params, self.sample_sd)
             class_id = torch.from_numpy(np.array(f.get("class_id"))).long()
+            part_labels = np.array(f.get("part_labels"))
+            part_labels = torch.from_numpy(part_labels).long()
 
-        return pcd, matrix, class_id
+        return pcd, matrix, class_id, part_labels
 
 
 @hmain(
@@ -83,7 +85,7 @@ def main() -> None:
         idx = 0
 
         for batch in progress_bar(loader, f"{split}"):
-            pcds, matrices, class_ids = batch
+            pcds, matrices, class_ids, part_labels = batch
             matrices = matrices.cuda()
 
             with torch.no_grad():
@@ -96,6 +98,7 @@ def main() -> None:
                 f.create_dataset("pcd", data=pcds[0].detach().cpu().numpy())
                 f.create_dataset("embedding", data=embedding[0].detach().cpu().numpy())
                 f.create_dataset("class_id", data=class_ids[0].detach().cpu().numpy())
+                f.create_dataset("part_labels", data=part_labels[0].cpu().numpy())
 
             idx += 1
 

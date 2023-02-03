@@ -84,3 +84,28 @@ def focal_loss(pred: Tensor, gt: Tensor, alpha: float = 0.1, gamma: float = 3) -
     f_loss = at * ((1 - pt) ** gamma) * bce_loss
 
     return f_loss.mean()
+
+
+def get_class_to_parts(dset_name: str) -> Dict[str, List[int]]:
+    shapenet_partseg = {
+        "02691156": [0, 1, 2, 3],
+        "02773838": [4, 5],
+        "02954340": [6, 7],
+        "02958343": [8, 9, 10, 11],
+        "03001627": [12, 13, 14, 15],
+        "03261776": [16, 17, 18],
+        "03467517": [19, 20, 21],
+        "03624134": [22, 23],
+        "03636649": [24, 25, 26, 27],
+        "03642806": [28, 29],
+        "03790512": [30, 31, 32, 33, 34, 35],
+        "03797390": [36, 37],
+        "03948459": [38, 39, 40],
+        "04099429": [41, 42, 43],
+        "04225987": [44, 45, 46],
+        "04379243": [47, 48, 49],
+    }
+
+    gallery = {"shapenet-partseg": shapenet_partseg}
+
+    return gallery[dset_name]

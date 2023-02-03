@@ -31,7 +31,7 @@ from utils import get_mlp_params_as_matrix
 logging.disable(logging.INFO)
 os.environ["WANDB_SILENT"] = "true"
 
-T_ITEM = Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]
+T_ITEM = Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]
 
 
 class InrDataset(Dataset):
@@ -54,7 +54,6 @@ class InrDataset(Dataset):
             num_triangles = torch.from_numpy(np.array(f.get("num_triangles")))
             params = torch.from_numpy(np.array(f.get("params"))).float()
             matrix = get_mlp_params_as_matrix(params, self.sample_sd)
-            class_id = torch.from_numpy(np.array(f.get("class_id"))).long()
 
             if self.split == "train":
                 coords = torch.from_numpy(np.array(f.get("coords")))
@@ -63,7 +62,7 @@ class InrDataset(Dataset):
                 coords = torch.zeros(0, 3)
                 labels = torch.zeros(0)
 
-        return vertices, num_vertices, triangles, num_triangles, coords, labels, matrix, class_id
+        return vertices, num_vertices, triangles, num_triangles, coords, labels, matrix
 
 
 class Inr2vecTrainer:
@@ -139,7 +138,7 @@ class Inr2vecTrainer:
 
             desc = f"Epoch {epoch}/{num_epochs}"
             for batch in progress_bar(self.train_loader, desc=desc):
-                _, _, _, _, coords, labels, matrices, _ = batch
+                _, _, _, _, coords, labels, matrices = batch
                 coords = coords.cuda()
                 labels = labels.cuda()
                 matrices = matrices.cuda()
@@ -188,7 +187,7 @@ class Inr2vecTrainer:
         idx = 0
 
         for batch in progress_bar(loader, desc=f"Validating on {split} set"):
-            vertices, num_vertices, _, _, _, _, matrices, _ = batch
+            vertices, num_vertices, _, _, _, _, matrices = batch
             matrices = matrices.cuda()
             bs = len(vertices)
 
@@ -242,7 +241,7 @@ class Inr2vecTrainer:
         for _ in range(randint(1, len(loader) - 1)):
             batch = next(loader_iter)
 
-        gt_v, num_v, gt_t, num_t, _, _, matrices, _ = batch
+        gt_v, num_v, gt_t, num_t, _, _, matrices = batch
         matrices = matrices.cuda()
         bs = len(gt_v)
 

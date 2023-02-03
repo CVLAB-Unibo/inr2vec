@@ -49,17 +49,16 @@ class InrDataset(Dataset):
     def __len__(self) -> int:
         return len(self.mlps_paths)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
         with h5py.File(self.mlps_paths[index], "r") as f:
             pcd = torch.from_numpy(np.array(f.get("pcd")))
             params = np.array(f.get("params"))
             params = torch.from_numpy(params).float()
             matrix = get_mlp_params_as_matrix(params, self.sample_sd)
-            class_id = torch.from_numpy(np.array(f.get("class_id"))).long()
 
         vgrid, centroids = voxelize_pcd(pcd, self.vox_res, -1, 1)
 
-        return vgrid, centroids, matrix, class_id
+        return vgrid, centroids, matrix
 
 
 class Inr2vecTrainer:
@@ -137,7 +136,7 @@ class Inr2vecTrainer:
 
             desc = f"Epoch {epoch}/{num_epochs}"
             for batch in progress_bar(self.train_loader, desc=desc):
-                vgrids, centroids, matrices, _ = batch
+                vgrids, centroids, matrices = batch
                 vgrids = vgrids.cuda()
                 centroids = centroids.cuda()
                 matrices = matrices.cuda()
@@ -188,7 +187,7 @@ class Inr2vecTrainer:
         idx = 0
 
         for batch in progress_bar(loader, desc=f"Validating on {split} set"):
-            vgrids, centroids, matrices, _ = batch
+            vgrids, centroids, matrices = batch
             vgrids = vgrids.cuda()
             centroids = centroids.cuda()
             matrices = matrices.cuda()
@@ -233,7 +232,7 @@ class Inr2vecTrainer:
         for _ in range(randint(1, len(loader) - 1)):
             batch = next(loader_iter)
 
-        vgrids, centroids, matrices, _ = batch
+        vgrids, centroids, matrices = batch
         vgrids = vgrids.cuda()
         centroids = centroids.cuda()
         matrices = matrices.cuda()
