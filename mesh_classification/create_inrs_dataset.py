@@ -176,8 +176,6 @@ class InrsDatasetCreator:
 
 @hmain(base_cfg_dir="cfg/bases", template_cfg_file="cfg/inrs_dataset.yaml", create_out_dir=False)
 def main() -> None:
-    dset = hcfg("dset_name", str)
-
     dset_creator = InrsDatasetCreator()
     dset_creator.create_dataset()
 
