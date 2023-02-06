@@ -55,4 +55,7 @@ for _ in range(n_epochs):
         gan.saver.save(gan.sess, checkpoint_path, global_step=gan.epoch)
 
         syn_latent_data = gan.generate(n_syn_samples, noise_params)
-        np.savez(osp.join(synthetic_data_out_dir, "epoch_" + str(epoch) + ".npz"), syn_latent_data)
+        np.savez(
+            osp.join(synthetic_data_out_dir, "epoch_" + str(epoch) + ".npz"),
+            embeddings=syn_latent_data,
+        )
