@@ -1,0 +1,30 @@
+inrs_root: /path/to/inrs
+
+num_queries_on_surface: 10_000
+stds: [0.003, 0.01, 0.1]
+num_points_per_std: [5_000, 4_000, 500, 500]
+
+encoder:
+  hidden_dims: [512, 512, 1024, 1024]
+  embedding_dim: 1024
+
+decoder:
+  input_dim: 3
+  hidden_dim: 512
+  num_hidden_layers_before_skip: 2
+  num_hidden_layers_after_skip: 2
+  out_dim: 1
+
+mlp:
+  hidden_dim: 512
+  num_hidden_layers: 4
+
+train_split: "train"
+val_split: "val"
+
+train_bs: 16
+val_bs: 16
+
+lr: 1e-4
+wd: 1e-2
+num_epochs: 300

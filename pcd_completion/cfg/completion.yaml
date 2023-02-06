@@ -1,0 +1,22 @@
+dset_root: "/path/to/embeddings"
+
+train_split: "train"
+train_bs: 256
+
+val_split: "val"
+val_bs: 16
+
+embedding_dim: 1024
+num_layers_transfer: 8
+
+decoder_ckpt_path: "/path/to/inr2vec/ckpt"
+decoder:
+  input_dim: 3
+  hidden_dim: 512
+  num_hidden_layers_before_skip: 2
+  num_hidden_layers_after_skip: 2
+  out_dim: 1
+
+lr: 1e-4
+wd: 1e-4
+num_epochs: 300
