@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import h5py
@@ -6,8 +7,8 @@ from pycarus.utils import progress_bar
 
 
 def main() -> None:
-    inr_embeddings_root = Path("/path/to/inr/embeddings")
-    out_root = Path("/path/out")
+    inr_embeddings_root = Path(sys.argv[1])
+    out_root = Path(sys.argv[2])
     num_classes = 10
 
     embeddings_paths = inr_embeddings_root.glob("*.h5")

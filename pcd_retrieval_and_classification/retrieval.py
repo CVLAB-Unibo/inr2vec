@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -54,7 +55,7 @@ class InrEmbeddingDataset(Dataset):
 
 
 def main() -> None:
-    inrs_embeddings_root = Path("/path/to/inrs/embeddings")
+    inrs_embeddings_root = Path(sys.argv[1])
     test_dset = InrEmbeddingDataset(inrs_embeddings_root, "test")
 
     embeddings = []

@@ -16,7 +16,7 @@ from models.idecoder import ImplicitDecoder
 
 import open3d as o3d  # isort: skip
 
-latent_gan_embeddings_path = Path("/path/to/latent/gan/embeddings")
+latent_gan_embeddings_path = Path(sys.argv[2])
 
 
 @hmain(base_cfg_dir="cfg/bases", run_cfg_file=sys.argv[1], parse_cmd_line=False)

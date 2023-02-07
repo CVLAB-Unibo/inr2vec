@@ -28,6 +28,9 @@ In this example, you can install all the needed Pytorch libraries by running:
 ```
 $ source /XXX/.venv/lib/python3.8/site-packages/pycarus/install_torch.sh
 ```
+This script downloads and installs the wheels for torch, torchvision, pytorch3d and torch-geometric.
+Occasionally, it may fails due to pytorch3d wheel not being available anymore. If that happens,
+please let us know or try to install pytorch3d manually.  
 Finally install the other dependencies:
 ```
 $ pip install hesiod torchmetrics wandb
