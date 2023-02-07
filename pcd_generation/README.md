@@ -15,6 +15,7 @@ perform these initial steps on `ShapeNet10`.
 To train a Latent-GAN on `inr2vec` embeddings, first export the embeddings in a single `.npz` file,
 by running:
 ```
+$ cd pcd_generation
 $ python3 export_embeddings.py /PATH/TO/INRS/TRAIN/EMBEDDINGS /OUT/DIR
 ```
 where `/PATH/TO/INRS/TRAIN/EMBEDDINGS` indicates the path to the directory with the embeddings
