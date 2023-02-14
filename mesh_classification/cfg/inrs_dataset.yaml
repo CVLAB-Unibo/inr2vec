@@ -14,7 +14,7 @@ num_parallel_mlps: 16
 mlp:
   hidden_dim: 512
   num_hidden_layers: 4
-  init_path: "init/in3_out1_h512_l4.pt"
+  init_path: "../inits/in3_out1_h512_l4.pt"
 
 num_steps: 500
 lr: 1e-4
