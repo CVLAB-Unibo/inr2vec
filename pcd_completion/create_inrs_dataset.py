@@ -128,12 +128,10 @@ class InrsDatasetCreator:
                     category = categories[idx]
                     name = names[idx]
 
-                    batched_params_inc = batched_params[idx]
-                    flattened_params_inc = [p[idx].view(-1) for p in batched_params_inc]
+                    flattened_params_inc = [p[idx].view(-1) for p in batched_params]
                     flattened_params_inc = torch.cat(flattened_params_inc, dim=0)
 
-                    batched_params_compl = batched_params[(bs // 2) + idx]
-                    flattened_params_compl = [p[idx].view(-1) for p in batched_params_compl]
+                    flattened_params_compl = [p[(bs // 2) + idx].view(-1) for p in batched_params]
                     flattened_params_compl = torch.cat(flattened_params_compl, dim=0)
 
                     h5_path = self.out_root / split / f"{global_idx}.h5"
