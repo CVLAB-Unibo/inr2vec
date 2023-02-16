@@ -82,6 +82,12 @@ class Inr2vecTrainer:
         val_dset = InrDataset(inrs_root, val_split, sample_sd, vox_res)
         val_bs = hcfg("val_bs", int)
         self.val_loader = DataLoader(val_dset, batch_size=val_bs, num_workers=8)
+        self.val_loader_shuffled = DataLoader(
+            val_dset,
+            batch_size=val_bs,
+            num_workers=8,
+            shuffle=True,
+        )
 
         encoder_cfg = hcfg("encoder", Dict[str, Any])
         encoder = Encoder(
@@ -223,14 +229,13 @@ class Inr2vecTrainer:
 
     @torch.no_grad()
     def plot(self, split: str) -> None:
-        loader = self.train_loader if split == "train" else self.val_loader
+        loader = self.train_loader if split == "train" else self.val_loader_shuffled
 
         self.encoder.eval()
         self.decoder.eval()
 
         loader_iter = iter(loader)
-        for _ in range(randint(1, len(loader) - 1)):
-            batch = next(loader_iter)
+        batch = next(loader_iter)
 
         vgrids, centroids, matrices = batch
         vgrids = vgrids.cuda()
