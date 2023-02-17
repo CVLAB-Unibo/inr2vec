@@ -68,8 +68,8 @@ class InrEmbeddingClassifier:
         self.test_loader = DataLoader(test_dset, batch_size=val_bs, num_workers=8)
 
         layers_dim = hcfg("layers_dim", List[int])
-        num_classes = hcfg("num_classes", int)
-        net = FcClassifier(layers_dim, num_classes)
+        self.num_classes = hcfg("num_classes", int)
+        net = FcClassifier(layers_dim, self.num_classes)
         self.net = net.cuda()
 
         lr = hcfg("lr", float)
@@ -114,10 +114,16 @@ class InrEmbeddingClassifier:
                 new_params.append(p1_copy)
                 new_labels.append(labels[i])
 
-        new_params = torch.stack(new_params)
-        new_labels = torch.stack(new_labels)
+        if len(new_params) > 0:
+            new_params = torch.stack(new_params)
+            final_params = torch.cat([params, new_params], dim=0)
+            new_labels = torch.stack(new_labels)
+            final_labels = torch.cat([labels, new_labels], dim=0)
+        else:
+            final_params = params
+            final_labels = labels
 
-        return torch.cat([params, new_params], dim=0), torch.cat([labels, new_labels], dim=0)
+        return final_params, final_labels
 
     def train(self) -> None:
         num_epochs = hcfg("num_epochs", int)
@@ -161,7 +167,7 @@ class InrEmbeddingClassifier:
 
     @torch.no_grad()
     def val(self, split: str, best: bool = False) -> Tuple[Tensor, Tensor]:
-        acc = Accuracy("multiclass").cuda()
+        acc = Accuracy("multiclass", num_classes=self.num_classes).cuda()
         predictions = []
         true_labels = []
 
