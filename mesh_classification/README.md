@@ -13,6 +13,15 @@ $ cd mesh_classification
 $ python3 create_inrs_dataset.py
 ```
 
+## (Optional) Compute SDF for an existing dataset of INRs
+The first step (Create the dataset of INRs) saves the precomputed SDF for each shape
+inside each INR h5 file. If for any reason you have a dataset of INRs without the precomputed
+SDF, you can create a new version of the dataset containing also the precomputed SDF
+by running:
+```
+$ python3 preprocess_sdf.py
+```
+
 ## Train `inr2vec`
 After creating a dataset of INRs, you can train `inr2vec` on it by running:
 ```
