@@ -246,7 +246,7 @@ class Inr2vecTrainer:
         loader_iter = iter(loader)
         batch = next(loader_iter)
 
-        gt_v, num_v, gt_t, num_t, _, _, matrices = batch
+        gt_v, num_v, _, _, _, _, matrices = batch
         matrices = matrices.cuda()
         bs = len(gt_v)
 
@@ -266,7 +266,7 @@ class Inr2vecTrainer:
                     pred -= 0.1
                     return pred
 
-                pred_v, pred_t = marching_cubes(levelset_func, (-1, 1), 64, level=0.01)
+                pred_v, _ = marching_cubes(levelset_func, (-1, 1), 64, level=0.01)
 
                 pred_v = pred_v[:, :3].float().cuda()
                 pred_pcd = random_point_sampling(pred_v, 2048)
