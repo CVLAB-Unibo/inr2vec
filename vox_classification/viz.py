@@ -9,6 +9,7 @@ from typing import Any, Dict, Tuple, cast
 import h5py
 import numpy as np
 import torch
+from einops import rearrange
 from hesiod import get_out_dir, hcfg, hmain
 from pycarus.geometry.mesh import get_o3d_mesh_from_tensors
 from pycarus.geometry.pcd import voxelize_pcd
@@ -99,8 +100,12 @@ def main() -> None:
 
         with torch.no_grad():
             embeddings = encoder(matrix.unsqueeze(0))
-            pred_vgrid = torch.sigmoid(decoder(embeddings, centroids))
+            centr = centroids.unsqueeze(0)
+            centr = rearrange(centr, "b r1 r2 r3 d -> b (r1 r2 r3) d")
+            pred_vgrid = torch.sigmoid(decoder(embeddings, centr))
+            pred_vgrid = rearrange(pred_vgrid, "b (r1 r2 r3) -> b r1 r2 r3", r1=vox_res, r2=vox_res)
 
+        gt_vgrid = gt_vgrid.unsqueeze(0)
         gt_vgrid_cubified = cubify(gt_vgrid, 0.5, align="center")
         gt_v = cast(Tensor, gt_vgrid_cubified.verts_packed())
         gt_t = cast(Tensor, gt_vgrid_cubified.faces_packed())
