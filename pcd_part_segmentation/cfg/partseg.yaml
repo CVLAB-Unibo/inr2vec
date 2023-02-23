@@ -8,6 +8,9 @@ val_bs: 256
 val_split: "val"
 test_split: "test"
 
+encoder:
+  embedding_dim: 1024
+
 decoder:
   input_dim: 3
   hidden_dim: 512

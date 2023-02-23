@@ -40,8 +40,9 @@ class InrEmbeddingDataset(Dataset):
     def __len__(self) -> int:
         return len(self.item_paths)
 
-    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         with h5py.File(self.item_paths[index], "r") as f:
+            pcd = torch.from_numpy(np.array(f.get("pcd")))
             embedding = np.array(f.get("embedding"))
             embedding = torch.from_numpy(embedding)
             class_id = np.array(f.get("class_id"))
@@ -49,7 +50,7 @@ class InrEmbeddingDataset(Dataset):
             part_labels = np.array(f.get("part_labels"))
             part_labels = torch.from_numpy(part_labels).long()
 
-        return embedding, class_id, part_labels
+        return pcd, embedding, class_id, part_labels
 
 
 class InrEmbeddingPartSegmentation:
