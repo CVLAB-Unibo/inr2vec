@@ -53,7 +53,7 @@ def main() -> None:
     ckpt_path = get_out_dir() / "ckpts/best.pt"
     ckpt = torch.load(ckpt_path)
 
-    embeddings_root = Path(hcfg("inrs_root", str))
+    embeddings_root = Path(hcfg("dset_root", str))
     dset = InrEmbeddingDataset(embeddings_root, "test")
     num_classes = hcfg("num_classes", int)
     num_part = hcfg("num_part", int)
@@ -81,6 +81,7 @@ def main() -> None:
         gt_pcd_o3d = ShapeNetPartSegmentation.color_pcd(gt_pcd, gt_part_labels)
 
         class_onehots = get_one_hot_encoding(class_id.unsqueeze(0), num_classes)
+        class_onehots = class_onehots.cuda()
         embeddings = torch.cat([embedding.unsqueeze(0), class_onehots], dim=1)
         pred_logits = decoder(embeddings, gt_pcd.unsqueeze(0)).squeeze(0)
         pred_part_labels = torch.argmax(pred_logits, dim=-1)
