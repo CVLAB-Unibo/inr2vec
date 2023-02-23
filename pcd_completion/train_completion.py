@@ -275,7 +275,6 @@ run_cfg_file = sys.argv[1] if len(sys.argv) == 2 else None
     template_cfg_file="cfg/completion.yaml",
     run_cfg_file=run_cfg_file,
     parse_cmd_line=False,
-    out_dir_root="../logs",
 )
 def main() -> None:
     wandb.init(
