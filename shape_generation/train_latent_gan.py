@@ -1,10 +1,12 @@
-### To be used with the repository https://github.com/optas/latent_3d_points
+### To be used with the code from the repository https://github.com/optas/latent_3d_points
 
 import os.path as osp
 
 import numpy as np
-from src.generators_discriminators import latent_code_discriminator_two_layers
-from src.generators_discriminators import latent_code_generator_two_layers
+from src.generators_discriminators import (
+    latent_code_discriminator_two_layers,
+    latent_code_generator_two_layers,
+)
 from src.in_out import PointCloudDataSet, create_dir
 from src.tf_utils import reset_tf_graph
 from src.w_gan_gp import W_GAN_GP
