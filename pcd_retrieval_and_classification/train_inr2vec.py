@@ -226,7 +226,7 @@ class Inr2vecTrainer:
             f = f_score(pred_pcds, pcds, threshold=0.01)[0]
             fscores.extend([float(f[i]) for i in range(bs)])
 
-            if idx > 99 and split == "train":
+            if idx > 99:
                 break
             idx += 1
 
@@ -333,7 +333,7 @@ run_cfg_file = sys.argv[1] if len(sys.argv) == 2 else None
 def main() -> None:
     wandb.init(
         entity="entity",
-        project=f"inr2vec",
+        project="inr2vec",
         name=get_run_name(),
         dir=str(get_out_dir()),
         config=get_cfg_copy(),

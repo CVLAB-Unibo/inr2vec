@@ -239,7 +239,7 @@ class Inr2vecTrainer:
             f = f_score(pred_pcds, pcds, threshold=0.01)[0]
             fscores.extend([float(f[i]) for i in range(bs)])
 
-            if idx > 99 and split == "train":
+            if idx > 99:
                 break
             idx += 1
 

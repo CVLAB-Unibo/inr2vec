@@ -222,7 +222,7 @@ class Inr2vecTrainer:
                     cdts.append(100.0)
                     fscores.append(0.0)
 
-            if idx > 99 and split == "train":
+            if idx > 99:
                 break
             idx += 1
 
@@ -332,7 +332,7 @@ run_cfg_file = sys.argv[1] if len(sys.argv) == 2 else None
 def main() -> None:
     wandb.init(
         entity="entity",
-        project=f"inr2vec",
+        project="inr2vec",
         name=get_run_name(),
         dir=str(get_out_dir()),
         config=get_cfg_copy(),
