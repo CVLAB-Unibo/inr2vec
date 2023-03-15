@@ -2,8 +2,9 @@ import sys
 
 sys.path.append("..")
 
+import logging
+import os
 from pathlib import Path
-from random import randint
 from typing import Any, Dict, List, Tuple
 
 import h5py
@@ -22,6 +23,9 @@ from torch.utils.data import DataLoader, Dataset
 
 from models.idecoder import ImplicitDecoder
 from models.transfer import Transfer
+
+logging.disable(logging.INFO)
+os.environ["WANDB_SILENT"] = "true"
 
 
 class InrEmbeddingDataset(Dataset):
@@ -59,8 +63,8 @@ class CompletionTrainer:
         val_bs = hcfg("val_bs", int)
         val_split = hcfg("val_split", str)
         val_dset = InrEmbeddingDataset(dset_root, val_split)
-        self.val_loader = DataLoader(val_dset, batch_size=val_bs, num_workers=8)
-        self.train_val_loader = DataLoader(train_dset, batch_size=val_bs, num_workers=8)
+        self.val_loader = DataLoader(val_dset, batch_size=val_bs, num_workers=8, shuffle=True)
+        self.train_val_loader = DataLoader(train_dset, batch_size=val_bs, num_workers=8, shuffle=True)
 
         embedding_dim = hcfg("embedding_dim", int)
         num_layers = hcfg("num_layers_transfer", int)
@@ -176,7 +180,7 @@ class CompletionTrainer:
             f = f_score(pred_pcds, completes_2048, threshold=0.01)[0]
             fscores.extend([float(f[i]) for i in range(bs)])
 
-            if idx > 9 and split == "train":
+            if idx > 9:
                 break
             idx += 1
 
@@ -195,8 +199,7 @@ class CompletionTrainer:
         self.transfer.eval()
 
         loader_iter = iter(loader)
-        for _ in range(randint(1, len(loader) - 1)):
-            batch = next(loader_iter)
+        batch = next(loader_iter)
 
         incompletes, completes, embeddings_incomplete, embeddings_complete = batch
         bs = incompletes.shape[0]
@@ -279,7 +282,7 @@ run_cfg_file = sys.argv[1] if len(sys.argv) == 2 else None
 def main() -> None:
     wandb.init(
         entity="entity",
-        project=f"inr2vec",
+        project="inr2vec",
         name=get_run_name(),
         dir=str(get_out_dir()),
         config=get_cfg_copy(),
