@@ -33,7 +33,7 @@ Occasionally, it may fails due to pytorch3d wheel not being available anymore. I
 please let us know or try to install pytorch3d manually.  
 Finally install the other dependencies:
 ```
-$ pip install hesiod torchmetrics wandb
+$ pip install hesiod torchmetrics wandb h5py==3.0.0
 ```
 ## Experiments
 The code for each experiment has been organized in a separate directory, containing also a README file with all the instructions.  
