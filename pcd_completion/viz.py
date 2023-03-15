@@ -1,4 +1,7 @@
 import sys
+
+sys.path.append("..")
+
 from pathlib import Path
 from random import randint
 from typing import Any, Dict, List, Tuple
