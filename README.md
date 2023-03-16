@@ -46,12 +46,12 @@ If you find our work useful, please cite us:
 ```
 @inproceedings{deluigi2023inr2vec,
     title = {Deep Learning on Implicit Neural Representations of Shapes},
-    author = {Luca De Luigi 
-              and Adriano Cardace 
-              and Riccardo Spezialetti 
-              and Pierluigi Zama Ramirez 
-              and Samuele Salti 
-              and Luigi Di Stefano},
+    author = {De Luigi, Luca 
+              and Cardace, Adriano 
+              and Spezialetti, Riccardo 
+              and Zama Ramirez, Pierluigi 
+              and Salti, Samuele
+              and Di Stefano, Luigi},
     booktitle = {International Conference on Learning Representations (ICLR)},
     year = {2023}
 }
