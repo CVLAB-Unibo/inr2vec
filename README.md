@@ -6,6 +6,8 @@ Authors: Luca De Luigi*, Adriano Cardace*, Riccardo Spezialetti*, Pierluigi Zama
 Salti, Luigi Di Stefano.  
 \* joint first authorship
 
+[[Paper](https://arxiv.org/abs/2302.05438)] [[Web Page](https://cvlab-unibo.github.io/inr2vec/)]
+
 ---
 The code contained in this repository has been tested on Ubuntu 20.04 with Python 3.8.6.
 
