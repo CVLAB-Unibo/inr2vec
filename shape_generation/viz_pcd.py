@@ -42,7 +42,7 @@ def main() -> None:
     decoder.eval()
 
     while True:
-        idx = randint(0, embeddings.shape[0])
+        idx = randint(0, embeddings.shape[0] - 1)
         emb = embeddings[idx].unsqueeze(0).cuda()
 
         def udfs_func(coords: Tensor, indices: List[int]) -> Tensor:
