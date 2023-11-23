@@ -26,8 +26,8 @@ def main() -> None:
 
     for class_id in progress_bar(range(num_classes), "Saving embeddings"):
         path_out = out_root / f"embeddings_{class_id}.npz"
-        embeddings = np.stack(embeddings[class_id])
-        np.savez_compressed(path_out, embeddings=embeddings)
+        stacked_embeddings = np.stack(embeddings[class_id])
+        np.savez_compressed(path_out, embeddings=stacked_embeddings)
 
 
 if __name__ == "__main__":
