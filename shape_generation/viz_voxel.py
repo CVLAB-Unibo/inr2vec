@@ -53,7 +53,7 @@ def main() -> None:
     centroids = centroids.cuda()
 
     while True:
-        idx = randint(0, embeddings.shape[0])
+        idx = randint(0, embeddings.shape[0] - 1)
         emb = embeddings[idx].unsqueeze(0).cuda()
 
         with torch.no_grad():
