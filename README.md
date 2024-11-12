@@ -41,7 +41,7 @@ $ pip install hesiod torchmetrics wandb h5py==3.0.0
 The code for each experiment has been organized in a separate directory, containing also a README file with all the instructions.  
 
 ## Datasets
-Please contact us if you need access to the datasets used in the experiments, both the ones containing the raw 3D shapes and the ones with the INRs.
+Please contact Pierluigi Zama Ramirez (pierluigi.zama@unibo.it) if you need access to the datasets used in the experiments, both the ones containing the raw 3D shapes and the ones with the INRs.
 
 ## Cite us
 If you find our work useful, please cite us:
